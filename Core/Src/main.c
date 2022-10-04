@@ -22,7 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "traffic_light.h"
+#include "hardware/button.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,6 +33,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define RED_DURATION_START 6000
+#define YELLOW_DURATION_START 1500
+#define GREEN_DURATION_START 1500
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -42,48 +46,21 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+static uint16_t durations[3] = {
+        [RED] = RED_DURATION_START,
+        [YELLOW] = YELLOW_DURATION_START,
+        [GREEN] = GREEN_DURATION_START
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+static void onButtonClick();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-void redOn() {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-}
-void redOff() {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-}
-void yellowOn() {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
-}
-void yellowOff() {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
-}
-void greenOn() {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
-}
-void greenOff() {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
-}
-
-void greenBlink() {
-	for (int i = 0; i < 3; i++) {
-		greenOn();
-		HAL_Delay(700);
-		greenOff();
-	}
-}
-
-bool isButtonPressed() {
-	return HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_15) == GPIO_PIN_RESET;
-}
 
 /* USER CODE END 0 */
 
@@ -116,34 +93,28 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-
+  trafficLightInit(
+		  redLed_GPIO_Port, redLed_Pin,
+		  yellowLed_GPIO_Port, yellowLed_Pin,
+		  greenLed_GPIO_Port, greenLed_Pin
+  );
+  trafficLightSetDuration(RED, durations[RED]);
+  trafficLightSetDuration(GREEN, durations[GREEN]);
+  trafficLightSetDuration(YELLOW, durations[YELLOW]);
+  buttonInit(nBtn_GPIO_Port, nBtn_Pin);
+  buttonSetOnClick(&onButtonClick);
+  trafficLightStart();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  int red_duration = 1200; //12000/10
-  while (1)
-  {
+  while (1)  {
+	  trafficLightUpdate();
+	  buttonUpdateState();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  redOn();
-	  for (int i = 0; i < red_duration; i++) {
-		  if (isButtonPressed()) {
-			  red_duration /= 4;
-		  }
-		  HAL_Delay(10);
-	  }
-	  red_duration = 1200;
-	  redOff();
 
-	  greenOn();
-	  HAL_Delay(3000);
-	  greenBlink();
-
-	  yellowOn();
-	  HAL_Delay(1000);
-	  yellowOff();
 
   }
   /* USER CODE END 3 */
@@ -191,7 +162,17 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+static void onButtonClick() {
+	if (isButtonAllowed()) {
+		durations[RED] >>= 2;
+		if (durations[RED] >= getLedDuration(RED)) {
+			setLedDuration(RED, 0);
+		} else {
+			setLedDuration(RED, durations[RED]);
+		}
+		durations[RED] = RED_DURATION_START;
+	}
+}
 /* USER CODE END 4 */
 
 /**
